@@ -22,13 +22,13 @@ while [ "$areyoudarnsure" != "y" ]; do
     response="${areyoudarnsure,,}"
 done
 
-echo "Cloning to $device ..."
+echo "Will clone to $device ..."
 
 label="target"
 
 echo "Does $device need formatted?"
-echo "Type [n] if you're updating a previously made clone"
-echo "otherwise type [y] to partition the device."
+echo "Probably [n] if you're updating a previous clone"
+echo "otherwise [y] to partition the device. (512MiB Fat32 EFI and remaining space EXT4)"
 read -p "Does $device need formatted? [y/N]: " formatRequested
 formatRequested=${formatRequested:-N}
 formatRequested="${formatRequested:0:1}"
@@ -99,7 +99,6 @@ else
       echo "Either $label or the EFI partition on the target is not mounted"
       echo '(Target efi partition MUST be labeled exactly "EFI")'
 fi
-
 
 umount "$efipartition"
 umount "$mainpartition"
