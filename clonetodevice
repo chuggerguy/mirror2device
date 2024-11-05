@@ -15,11 +15,11 @@ while [ "$response" != "y" ]; do
     response="${response:0:1}"
     response="${response,,}"
 done
-while [ "$response" != "y" ]; do
-    read -p "Device $device will be overwritten, last chance, are you sure [y/N]? " response
-    response=${response:-N}
-    response="${response:0:1}"
-    response="${response,,}"
+while [ "$areyoudarnsure" != "y" ]; do
+    read -p "Device $device will be overwritten, last chance, are you sure [y/N]? " areyoudarnsure
+    response=${areyoudarnsure:-N}
+    response="${areyoudarnsure:0:1}"
+    response="${areyoudarnsure,,}"
 done
 
 echo "Cloning to $device ..."
@@ -28,7 +28,7 @@ label="target"
 
 echo "Does $device need formatted?"
 echo "Type [n] if you're updating a previously made clone"
-ehco "otherwise type [y] to partition the device."
+echo "otherwise type [y] to partition the device."
 read -p "Does $device need formatted? [y/N]: " formatRequested
 formatRequested=${formatRequested:-N}
 formatRequested="${formatRequested:0:1}"
