@@ -1,0 +1,106 @@
+#!/bin/bash
+
+if [ "$(id -u)" != "0" ]; then
+  exec sudo "$0" "$@"
+fi
+
+user="$SUDO_USER"
+hostname=$(hostname)
+
+deviceGuess=$(cat /var/log/syslog | grep "/dev/sd" | tail -1 | sed -r 's/.*(\/dev\/sd.).*/\1/')
+
+while [ "$response" != "y" ]; do
+    deviceGuess=$(cat /var/log/syslog | grep "/dev/sd" | tail -1 | sed -r 's/.*(\/dev\/sd.).*/\1/')
+    read -p "Enter the device to sync to [$deviceGuess]: " device
+    device=${device:-$deviceGuess}
+    read -p "Is $device correct [y/N]? " response
+    response=${response:-N}
+    response="${response:0:1}"
+    response="${response,,}"
+done
+
+echo "Cloning to $device ..."
+
+label="target"
+
+read -p "Format $device? [y/N]: " formatRequested
+formatRequested=${formatRequested:-N}
+formatRequested="${formatRequested:0:1}"
+formatRequested="${formatRequested,,}"
+
+if [[ $device == *"nvme"* ]]; then
+    efipartition="$device"p1
+    mainpartition="$device"p2
+else
+    efipartition="$device"1
+    mainpartition="$device"2
+fi
+
+if [ $formatRequested = "y" ]; then
+suggestedlabel="$(hostname)usb"
+read -p "Enter a new label for the target device (e.g. [$suggestedlabel]): " label
+label=${label:-$suggestedlabel}
+echo "Label of target device will be: $label"
+echo "formating $device...";
+
+fdisk $device <<EOF
+g
+n
+1
+
++512M
+t
+C12A7328-F81F-11D2-BA4B-00A0C93EC93B
+n
+2
+
+
+w
+EOF
+
+echo "efi and ext4 partitions created successfully."
+
+mkfs.fat -F32 -n EFI "$efipartition"
+yes | mkfs.ext4 -L "$label" "$mainpartition"
+fi
+
+mkdir /media/$user/EFI
+
+mount "$efipartition" /media/$user/EFI
+
+mkdir /media/$user/$label
+
+mount "$mainpartition" /media/$user/$label
+
+
+if    [ $(mount | grep -c "/media/$user/$label ") -gt 0 ] & [ $(mount | grep -c /media/$user/EFI) -gt 0 ]
+then
+      sourceuuid=$(findmnt / -o UUID -n)
+      targetuuid=$(findmnt /media/$user/"$label" -o UUID -n)
+
+      sourceefiuuid=$(grep /boot/efi /etc/fstab | awk '{print $1}' | grep UUID | sed -E 's/UUID=(.*)/\1/' )
+      targetefiuuid=$(findmnt /media/$user/EFI/ -o UUID -n)
+      if [ $formatRequested = "y" ]; then
+          rsync -rv --delete /boot/efi/ /media/$user/EFI/
+          sed -ie "s/$sourceuuid/$targetuuid/" /media/$user/EFI/EFI/ubuntu/grub.cfg
+      fi
+      rsync -ravhx --delete --exclude="/media/$user/$label" --exclude="/mnt/onedrive" / /media/$user/"$label"/
+
+      sed -ie "s/$sourceuuid/$targetuuid/" /media/$user/$label/etc/fstab
+      sed -ie "s/$sourceuuid/$targetuuid/" /media/$user/$label/boot/grub/grub.cfg
+      sed -ie "s/$sourceefiuuid/$targetefiuuid/" /media/$user/$label/etc/fstab
+
+else
+      echo "Either $label or the EFI partition on the target is not mounted"
+      echo '(Target efi partition MUST be labeled exactly "EFI")'
+fi
+
+
+umount "$efipartition"
+umount "$mainpartition"
+
+rm -rf /media/$user/EFI
+rm -rf /media/$user/$label
+
+
+
