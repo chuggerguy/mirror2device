@@ -11,10 +11,10 @@ This is very much just a script I cobbled together to suit my personal need and 
 Feel free to use/change it as you wish. Use at your own risk. You can blow away important data, especially if
 you choose the wrong device.
 I'm not a programmer, just an amateur. Code was written to perform the task I wanted it to do and works for me
-but it might not work for you. 
+but it might not work for you.
 I'm certain the code is not the most efficient or elegant.
 
-What do "I" use it for? I clone my main Linux OS drive to a second drive. A "slave" drive that I can clone back from 
-if I mess up the "master". 
+What do "I" use it for? I clone my main Linux OS drive to a second drive. A "slave" drive that I can clone back from if I mess up the "master".
+
 Also, to test upgrades, new packages, etc. Boot the slave and do the tests there.
 I also clone to a USB Flash drive so I have another backup.
