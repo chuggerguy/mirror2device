@@ -81,7 +81,7 @@ mkdir /media/$user/$label
 mount "$mainpartition" /media/$user/$label
 
 
-if    [ $(mount | grep -c "/media/$user/$label ") -gt 0 ] & [ $(mount | grep -c /media/$user/EFI) -gt 0 ]
+if    [ $(mount | grep -c "/media/$user/$label ") -gt 0 ] & [ $(mount | grep -c /media/$user/EFI) -gt 0 ] & [ $(mount | grep -c /boot/efi) -gt 0 ]
 then
       sourceuuid=$(findmnt / -o UUID -n)
       targetuuid=$(findmnt /media/$user/"$label" -o UUID -n)
