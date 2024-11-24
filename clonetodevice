@@ -70,6 +70,8 @@ mkfs.fat -F32 -n EFI "$efipartition"
 yes | mkfs.ext4 -L "$label" "$mainpartition"
 fi
 
+mount /boot/efi
+
 mkdir /media/$user/EFI
 
 mount "$efipartition" /media/$user/EFI
@@ -86,11 +88,10 @@ then
 
       sourceefiuuid=$(grep /boot/efi /etc/fstab | awk '{print $1}' | grep UUID | sed -E 's/UUID=(.*)/\1/' )
       targetefiuuid=$(findmnt /media/$user/EFI/ -o UUID -n)
-      if [ $formatRequested = "y" ]; then
-          rsync -rv --delete /boot/efi/ /media/$user/EFI/
-          sed -ie "s/$sourceuuid/$targetuuid/" /media/$user/EFI/EFI/ubuntu/grub.cfg
-      fi
-      rsync -ravhx --delete --exclude="/media/$user/$label" --exclude="/mnt/onedrive" / /media/$user/"$label"/
+
+      rsync -rv --delete /boot/efi/ /media/$user/EFI/
+      sed -ie "s/$sourceuuid/$targetuuid/" /media/$user/EFI/EFI/ubuntu/grub.cfg
+      rsync -axAXHv --exclude='/dev/*' --exclude='/proc/*' --exclude='/sys/*' --exclude='/tmp/*' --exclude='/run/*' --exclude='/mnt/*' --exclude='/media/*' --exclude='/lost+found/' --exclude='/swapfile' --delete  / /media/$user/"$label"/
 
       sed -ie "s/$sourceuuid/$targetuuid/" /media/$user/$label/etc/fstab
       sed -ie "s/$sourceuuid/$targetuuid/" /media/$user/$label/boot/grub/grub.cfg
