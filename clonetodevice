@@ -15,7 +15,14 @@ while [ "$response" != "y" ]; do
     response="${response:0:1}"
     response="${response,,}"
 done
-echo "Cloning to $device ..."
+while [ "$areyoudarnsure" != "y" ]; do
+    read -p "Device $device will be overwritten, last chance, are you sure [y/N]? " areyoudarnsure
+    response=${areyoudarnsure:-N}
+    response="${areyoudarnsure:0:1}"
+    response="${areyoudarnsure,,}"
+done
+
+echo "Will clone to $device ..."
 
 label="target"
 
