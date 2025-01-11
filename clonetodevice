@@ -15,14 +15,8 @@ while [ "$response" != "y" ]; do
     response="${response:0:1}"
     response="${response,,}"
 done
-while [ "$areyoudarnsure" != "y" ]; do
-    read -p "Device $device will be overwritten, last chance, are you sure [y/N]? " areyoudarnsure
-    response=${areyoudarnsure:-N}
-    response="${areyoudarnsure:0:1}"
-    response="${areyoudarnsure,,}"
-done
 
-echo "Will clone to $device ..."
+echo "Okay, will clone to $device ..."
 
 label="target"
 
@@ -90,12 +84,12 @@ then
       targetefiuuid=$(findmnt /media/$user/EFI/ -o UUID -n)
 
       rsync -rv --delete /boot/efi/ /media/$user/EFI/
-      sed -ie "s/$sourceuuid/$targetuuid/" /media/$user/EFI/EFI/ubuntu/grub.cfg
+      sed -i "s/$sourceuuid/$targetuuid/" /media/$user/EFI/EFI/ubuntu/grub.cfg
       rsync -axAXHv --exclude='/dev/*' --exclude='/proc/*' --exclude='/sys/*' --exclude='/tmp/*' --exclude='/run/*' --exclude='/mnt/*' --exclude='/media/*' --exclude='/lost+found/' --delete  / /media/$user/"$label"/
 
-      sed -ie "s/$sourceuuid/$targetuuid/" /media/$user/$label/etc/fstab
-      sed -ie "s/$sourceuuid/$targetuuid/" /media/$user/$label/boot/grub/grub.cfg
-      sed -ie "s/$sourceefiuuid/$targetefiuuid/" /media/$user/$label/etc/fstab
+      sed -i "s/$sourceuuid/$targetuuid/" /media/$user/$label/etc/fstab
+      sed -i "s/$sourceuuid/$targetuuid/" /media/$user/$label/boot/grub/grub.cfg
+      sed -i "s/$sourceefiuuid/$targetefiuuid/" /media/$user/$label/etc/fstab
 else
       echo "Either $label or the EFI partition on the target is not mounted"
       echo '(Target efi partition MUST be labeled exactly "EFI")'
