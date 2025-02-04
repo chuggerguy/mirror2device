@@ -95,8 +95,14 @@ else
       echo '(Target efi partition MUST be labeled exactly "EFI")'
 fi
 
+echo "Writing changes to target, do not remove!"
+
+sync
+
 umount "$efipartition"
 umount "$mainpartition"
 
 rm -rf /media/$user/EFI
 rm -rf /media/$user/$label
+
+echo "It is now okay to remove the target drive."
