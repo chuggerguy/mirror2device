@@ -1,4 +1,12 @@
 #!/bin/bash
+#Caution, do not run unless you already have a backup you trust.
+#I've ran this on my machine enough that I trust it.
+#You should not trust any new backup plan until you've not only
+#used it to backup, but also to restore.
+#Just because this works for me, that doesn't mean it will work for you.
+#Use at your own risk, I'm just any amateur.
+#That said, it's served me well. :)
+
 
 if [ "$(id -u)" != "0" ]; then
   exec sudo "$0" "$@"
@@ -15,14 +23,50 @@ while [ "$response" != "y" ]; do
     response="${response:0:1}"
     response="${response,,}"
 done
+ 
+slashmountedonpartition=$(mount | grep " / " | awk '{print $1}')
 
-echo "Okay, will clone to $device ..."
+#####################################
+if [[ $slashmountedonpartition == *"nvme"* ]]; then
+    sourcedevice=${slashmountedonpartition::-2}
+else
+    sourcedevice=${slashmountedonpartition::-1}
+fi
+echo "sourcedevice is $sourcedevice"
+#####################################
+
+
+numpartitions=$(lsblk -nlpo NAME,TYPE $sourcedevice | awk '$2=="part"{print $1}' | wc -l)
+
+echo "Okay, found $numpartitions partitions on source drive ($sourcedevice)"
+
+if [ $numpartitions != 2 ]; then
+    echo "Sorry, this script only works with 2 specific partitions"
+    echo  "Partition #1 must be exactly \"EFI System\""
+    echo "Partition #2 must be exactly \"Linux filesystem\""
+    exit 1
+fi
+
+part1type=$(lsblk -o name,parttypename | grep sda1 | awk -F 'sda1' '{print $2}' | sed 's/^[[:space:]]*//')
+echo "part1type is $part1type"
+
+part2type=$(lsblk -o name,parttypename | grep sda2 | awk -F 'sda2' '{print $2}' | sed 's/^[[:space:]]*//')
+echo "part2type is $part2type"
+
+if [[ $part1type != "EFI System"  || $part2type != "Linux filesystem" ]]; then
+    echo "Sorry, partitions are wrong type"
+    echo "Partition #1 must be exactly \"EFI System\""
+    echo "Partition #2 must be exactly \"Linux filesystem\""
+    exit 2
+fi
+
+echo "Okay, $sourcedevice will be cloned to $device ..."
 
 label="target"
 
 echo "Does $device need formatted?"
-echo "Probably [n] if you're updating a previous clone"
-echo "otherwise [y] to partition the device. (512MiB Fat32 EFI and remaining space EXT4)"
+echo "Probably [n]ot if you're updating a previous working clone"
+echo "otherwise [y]es to partition the device. (512MiB Fat32 EFI and remaining space EXT4)"
 read -p "Does $device need formatted? [y/N]: " formatRequested
 formatRequested=${formatRequested:-N}
 formatRequested="${formatRequested:0:1}"
