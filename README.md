@@ -16,3 +16,5 @@ What do "I" use it for? I clone my main Linux OS drive to a second device. A sla
 
 Also, to test new configs, new packages, etc. I boot to the slave and do the tests there.
 I also clone to a USB Flash drive so I have another backup.
+
+Disclaimer: I realize this does not produce a true drive clone. It's not a bit by bit copy of the drive. Perhaps it should be called an OS clone? Or maybe not. :)
