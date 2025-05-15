@@ -6,88 +6,79 @@
 #Just because this works for me, that doesn't mean it will work for you.
 #Use at your own risk, I'm just any amateur.
 #That said, it's served me well. :)
+#
+#After creating the clone, you'll need to run sudo update-grub first time you boot into it.
+#Grub menu items will not read prperly until you do.
+#Someday I may fix that but not today. Be my guest. Please share. :)
 
-
-if [ "$(id -u)" != "0" ]; then
-  exec sudo "$0" "$@"
-fi
-
+debug="off"
 user="$SUDO_USER"
 hostname=$(hostname)
 
-while [ "$response" != "y" ]; do
-    read -p "Enter the device to clone to [/dev/sdx]: " device
-    device=${device:-/dev/sdx}
-    read -p "Is $device correct [y/N]? " response
-    response=${response:-N}
-    response="${response:0:1}"
-    response="${response,,}"
-done
- 
-slashmountedonpartition=$(mount | grep " / " | awk '{print $1}')
+main () {
+    determinesource;
+    checksource;
+    gettarget;
+    checktarget;
+    askifformatdesired;
+    if [[ $formatRequested == "y" ]]; then
+        doformat;
+    else
+        echo "skipping format";
+    fi
+    doclone;
+}
 
-#####################################
-if [[ $slashmountedonpartition == *"nvme"* ]]; then
-    sourcedevice=${slashmountedonpartition::-2}
-else
-    sourcedevice=${slashmountedonpartition::-1}
-fi
-echo "sourcedevice is $sourcedevice"
-#####################################
+#*******************doclone************************
+doclone () {
+echo "making the clone"
+    label="target"
+    mount /boot/efi
+    mkdir /media/$user/EFI
+    mount "$efipartition" /media/$user/EFI
+    mkdir /media/$user/$label
+    mount "$mainpartition" /media/$user/$label
 
+    sourceuuid=$(findmnt / -o UUID -n)
+    targetuuid=$(findmnt /media/$user/"$label" -o UUID -n)
 
-numpartitions=$(lsblk -nlpo NAME,TYPE $sourcedevice | awk '$2=="part"{print $1}' | wc -l)
+    sourceefiuuid=$(grep /boot/efi /etc/fstab | awk '{print $1}' | grep UUID | sed -E 's/UUID=(.*)/\1/' )
+    targetefiuuid=$(findmnt /media/$user/EFI/ -o UUID -n)
 
-echo "Okay, found $numpartitions partitions on source drive ($sourcedevice)"
+    rsync -rv --delete /boot/efi/ /media/$user/EFI/
+    sed -i "s/$sourceuuid/$targetuuid/" /media/$user/EFI/EFI/ubuntu/grub.cfg
+      
+    rsync -axAXHv --exclude='/dev/*' --exclude='/proc/*' --exclude='/sys/*' --exclude='/tmp/*' --exclude='/run/*' --exclude='/mnt/*' --exclude='/media/*' --exclude='/lost+found/' --delete  / /media/$user/"$label"/
 
-if [ $numpartitions != 2 ]; then
-    echo "Sorry, this script only works with 2 specific partitions"
-    echo  "Partition #1 must be exactly \"EFI System\""
-    echo "Partition #2 must be exactly \"Linux filesystem\""
-    exit 1
-fi
+    sed -i "s/$sourceuuid/$targetuuid/" /media/$user/$label/etc/fstab
+    sed -i "s/$sourceuuid/$targetuuid/" /media/$user/$label/boot/grub/grub.cfg
+    sed -i "s/$sourceefiuuid/$targetefiuuid/" /media/$user/$label/etc/fstab
 
-part1type=$(lsblk -o name,parttypename | grep sda1 | awk -F 'sda1' '{print $2}' | sed 's/^[[:space:]]*//')
-echo "part1type is $part1type"
+    echo "Writing changes to target, do not remove!"
 
-part2type=$(lsblk -o name,parttypename | grep sda2 | awk -F 'sda2' '{print $2}' | sed 's/^[[:space:]]*//')
-echo "part2type is $part2type"
+    sync
 
-if [[ $part1type != "EFI System"  || $part2type != "Linux filesystem" ]]; then
-    echo "Sorry, partitions are wrong type"
-    echo "Partition #1 must be exactly \"EFI System\""
-    echo "Partition #2 must be exactly \"Linux filesystem\""
-    exit 2
-fi
+    umount "$efipartition"
+    umount "$mainpartition"
 
-echo "Okay, $sourcedevice will be cloned to $device ..."
+    rm -rf /media/$user/EFI
+    rm -rf /media/$user/$label
 
-label="target"
+    echo "It is now okay to remove the target drive."
+}
 
-echo "Does $device need formatted?"
-echo "Probably [n]ot if you're updating a previous working clone"
-echo "otherwise [y]es to partition the device. (512MiB Fat32 EFI and remaining space EXT4)"
-read -p "Does $device need formatted? [y/N]: " formatRequested
-formatRequested=${formatRequested:-N}
-formatRequested="${formatRequested:0:1}"
-formatRequested="${formatRequested,,}"
+#*******************doclone************************
 
-if [[ $device == *"nvme"* ]]; then
-    efipartition="$device"p1
-    mainpartition="$device"p2
-else
-    efipartition="$device"1
-    mainpartition="$device"2
-fi
-
-if [ $formatRequested = "y" ]; then
-possiblelabel="$(hostname)usb"
-read -p "Enter a new label for the target device (e.g. [$possiblelabel]): " label
-label=${label:-$possiblelabel}
-echo "Label of target device will be: $label"
-echo "formating $device...";
-
-fdisk $device <<EOF
+#*******************doformat************************
+doformat () {
+    if [[ $debug == "on" ]]; then echo "formatting $targetdevice"; fi
+    possiblelabel="$(hostname)usb"
+    echo
+    read -p "Enter a new label for the target device (e.g. [$possiblelabel]): " label
+    label=${label:-$possiblelabel}
+    echo "Label of target device will be: $label"
+    echo "This might take a few minutes, please be patient."
+    fdisk $targetdevice <<EOF
 g
 n
 1
@@ -102,51 +93,154 @@ n
 w
 EOF
 
-echo "efi and ext4 partitions created successfully."
+    echo "efi and ext4 partitions created successfully."
+    echo "The new partitions will now be formatted"
+    echo "This might take a few minutes, please be patient."
+    mkfs.fat -F32 -n EFI "$efipartition"
+    yes | mkfs.ext4 -L "$label" "$mainpartition"
+    sync
 
-mkfs.fat -F32 -n EFI "$efipartition"
-yes | mkfs.ext4 -L "$label" "$mainpartition"
+}
+#******************end doformat*********************
+
+
+
+#*****************askifformatdesired*************************
+askifformatdesired () {
+
+    if [[ $targetneedsformatted == "true" ]]; then
+        echo -e "\n"
+        read -p "Target device ($targetdevice) needs formatting, is that okay? [y/N]: " formatRequested
+        formatRequested=${formatRequested:-N}
+        formatRequested="${formatRequested:0:1}"
+        formatRequested="${formatRequested,,}"
+        if [[ $formatRequested != "y" ]]; then 
+            echo "Format needed but refused, aborting."
+            exit;
+        fi
+    else #format not needed but still an option
+        if [[ $debug == "on" ]]; then echo "$targetdevice has preexisting partitions."; fi
+        echo -e "\nTarget has preexisting OS."
+        echo "Freshen existing or format anew? (y to format, N to freshen."
+        read -p "Format $targetdevice? [y/N]: " formatRequested
+        formatRequested=${formatRequested:-N}
+        formatRequested="${formatRequested:0:1}"
+        formatRequested="${formatRequested,,}"
+    fi
+}
+#**************end askifformatdesired************************
+
+
+
+#*********************gettarget******************************
+gettarget () {
+    while [ "$response" != "y" ]; do
+        read -p "Enter the device to clone to [/dev/sdx]: " targetdevice
+        device=${device:-/dev/sdx}
+        read -p "Is $targetdevice correct [y/N]? " response
+        response=${response:-N}
+        response="${response:0:1}"
+        response="${response,,}"
+    done
+}
+#***********************end gettarget****************************
+
+#************************checktarget*****************************
+
+
+checktarget () {
+    if [[ $debug == "on" ]]; then echo "checking target: ($targetdevice)"; fi
+    numtargetpartitions=$(lsblk -nlpo NAME,TYPE $targetdevice | awk '$2=="part"{print $1}' | wc -l)
+
+    if [[ $debug == "on" ]]; then echo "Okay, found $numtargetpartitions partitions on target device ($targetdevice)"; fi
+
+
+    if [[ $targetdevice == *"nvme"* ]]; then
+        efipartition="$targetdevice"p1
+        mainpartition="$targetdevice"p2
+    else
+        efipartition="$targetdevice"1
+        mainpartition="$targetdevice"2
+    fi
+
+    efishort=$(echo $efipartition | awk -F'/' '{print $3}')
+    mainshort=$(echo $mainpartition | awk -F'/' '{print $3}')
+
+    part1type=$(lsblk -o name,parttypename | grep $efishort | awk -F "$efishort" '{print $2}' | sed 's/^[[:space:]]*//')
+    if [[ $debug == "on" ]]; then echo "partition type on first partition of target device is: $part1type"; fi
+
+    part2type=$(lsblk -o name,parttypename | grep $mainshort | awk -F "$mainshort" '{print $2}' | sed 's/^[[:space:]]*//')
+    if [[ $debug == "on" ]]; then echo "partition type on second partition of target device is $part2type"; fi
+
+    if [[ $part1type != "EFI System"  || $part2type != "Linux filesystem" ]]; then
+        if [[ $debug == "on" ]]; then echo "Partitions are wrong type, will need to format the target device."; fi
+        targetneedsformatted="true"
+    else
+        if [[ $debug == "on" ]]; then echo "Target partitions are the correct type, $targetdevice is eligible to be cloned without formatting..."; fi
+        targetneedsformatted="false"
+    fi
+}
+#**********************end checktarget***************************
+
+
+#*************************determinesource******************************
+
+determinesource () {
+     slashmountedonpartition=$(mount | grep " / " | awk '{print $1}')
+
+    if [[ $slashmountedonpartition == *"nvme"* ]]; then
+        sourcedevice=${slashmountedonpartition::-2}
+     else
+        sourcedevice=${slashmountedonpartition::-1}
+    fi
+    if [[ $debug == "on" ]]; then echo "sourcedevice is $sourcedevice"; fi
+}
+#***********************end determinesource****************************
+
+#***********************checksource****************************
+checksource () {
+numpartitions=$(lsblk -nlpo NAME,TYPE $sourcedevice | awk '$2=="part"{print $1}' | wc -l)
+
+if [[ $debug == "on" ]]; then echo "Okay, found $numpartitions partitions on source drive ($sourcedevice)"; fi
+
+if [ $numpartitions != 2 ]; then
+    echo "Sorry, this script only works with 2 specific partitions"
+    echo  "Partition #1 must be exactly \"EFI System\""
+    echo "Partition #2 must be exactly \"Linux filesystem\""
+    exit 1
 fi
 
-mount /boot/efi
-
-mkdir /media/$user/EFI
-
-mount "$efipartition" /media/$user/EFI
-
-mkdir /media/$user/$label
-
-mount "$mainpartition" /media/$user/$label
-
-
-if    [ $(mount | grep -c "/media/$user/$label ") -gt 0 ] & [ $(mount | grep -c /media/$user/EFI) -gt 0 ] & [ $(mount | grep -c /boot/efi) -gt 0 ]
-then
-      sourceuuid=$(findmnt / -o UUID -n)
-      targetuuid=$(findmnt /media/$user/"$label" -o UUID -n)
-
-      sourceefiuuid=$(grep /boot/efi /etc/fstab | awk '{print $1}' | grep UUID | sed -E 's/UUID=(.*)/\1/' )
-      targetefiuuid=$(findmnt /media/$user/EFI/ -o UUID -n)
-
-      rsync -rv --delete /boot/efi/ /media/$user/EFI/
-      sed -i "s/$sourceuuid/$targetuuid/" /media/$user/EFI/EFI/ubuntu/grub.cfg
-      rsync -axAXHv --exclude='/dev/*' --exclude='/proc/*' --exclude='/sys/*' --exclude='/tmp/*' --exclude='/run/*' --exclude='/mnt/*' --exclude='/media/*' --exclude='/lost+found/' --delete  / /media/$user/"$label"/
-
-      sed -i "s/$sourceuuid/$targetuuid/" /media/$user/$label/etc/fstab
-      sed -i "s/$sourceuuid/$targetuuid/" /media/$user/$label/boot/grub/grub.cfg
-      sed -i "s/$sourceefiuuid/$targetefiuuid/" /media/$user/$label/etc/fstab
+if [[ $sourcedevice == *"nvme"* ]]; then
+    efipartition="$sourcedevice"p1
+    mainpartition="$sourcedevice"p2
 else
-      echo "Either $label or the EFI partition on the target is not mounted"
-      echo '(Target efi partition MUST be labeled exactly "EFI")'
+    efipartition="$sourcedevice"1
+    mainpartition="$sourcedevice"2
 fi
 
-echo "Writing changes to target, do not remove!"
+efishort=$(echo $efipartition | awk -F'/' '{print $3}')
+mainshort=$(echo $mainpartition | awk -F'/' '{print $3}')
 
-sync
 
-umount "$efipartition"
-umount "$mainpartition"
+#echo "efishort is: $efishort"
 
-rm -rf /media/$user/EFI
-rm -rf /media/$user/$label
+part1type=$(lsblk -o name,parttypename | grep $efishort | awk -F "$efishort" '{print $2}' | sed 's/^[[:space:]]*//')
+if [[ $debug == "on" ]]; then echo "part1type is: $part1type"; fi
 
-echo "It is now okay to remove the target drive."
+part2type=$(lsblk -o name,parttypename | grep $mainshort | awk -F "$mainshort" '{print $2}' | sed 's/^[[:space:]]*//')
+if [[ $debug == "on" ]]; then echo "part2type is $part2type"; fi
+
+if [[ $part1type != "EFI System"  || $part2type != "Linux filesystem" ]]; then
+    echo "Sorry, partitions are wrong type"
+    echo "Partition #1 must be exactly \"EFI System\""
+    echo "Partition #2 must be exactly \"Linux filesystem\""
+    exit 2
+fi
+
+if [[ $debug == "on" ]]; then echo "Okay, partitions are correct, $sourcedevice is eligible to be cloned..."; fi
+}
+#***********************end checksource****************************
+
+
+
+main
