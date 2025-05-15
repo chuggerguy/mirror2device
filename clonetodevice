@@ -11,6 +11,10 @@
 #Grub menu items will not read prperly until you do.
 #Someday I may fix that but not today. Be my guest. Please share. :)
 
+if [ "$(id -u)" != "0" ]; then
+  exec sudo "$0" "$@"
+fi
+
 debug="off"
 user="$SUDO_USER"
 hostname=$(hostname)
