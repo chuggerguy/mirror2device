@@ -7,9 +7,6 @@
 #Use at your own risk, I'm just any amateur.
 #That said, it's served me well. :)
 #
-#After creating the clone, you'll need to run sudo update-grub first time you boot into it.
-#Grub menu items will not read prperly until you do.
-#Someday I may fix that but not today. Be my guest. Please share. :)
 
 if [ "$(id -u)" != "0" ]; then
   exec sudo "$0" "$@"
@@ -31,7 +28,28 @@ main () {
         echo "skipping format";
     fi
     doclone;
+    fixgrub;
 }
+
+#*******************fixgrub************************
+fixgrub () {
+
+for i in /sys /run /dev /proc; do mount --bind "$i" "/media/$user/target$i"; done
+
+chroot /media/$user/target/ update-grub
+
+for i in /proc /dev /run /sys; do umount "/media/$user/target$i"; done
+
+umount /media/$user/EFI
+umount /media/$user/target
+
+rmdir /media/$user/target
+rmdir /media/$user/EFI
+
+echo "It is now okay to remove the target drive."
+}
+
+#*****************end fixgrub**********************
 
 #*******************doclone************************
 doclone () {
@@ -61,14 +79,6 @@ echo "making the clone"
     echo "Writing changes to target, do not remove!"
 
     sync
-
-    umount "$efipartition"
-    umount "$mainpartition"
-
-    rm -rf /media/$user/EFI
-    rm -rf /media/$user/$label
-
-    echo "It is now okay to remove the target drive."
 }
 
 #*******************doclone************************
@@ -124,9 +134,9 @@ askifformatdesired () {
         fi
     else #format not needed but still an option
         if [[ $debug == "on" ]]; then echo "$targetdevice has preexisting partitions."; fi
-        echo -e "\nTarget has preexisting OS."
-        echo "Freshen existing or format anew? (y to format, N to freshen."
-        read -p "Format $targetdevice? [y/N]: " formatRequested
+        echo -e "\nTarget has preexisting clone."
+        echo -e "Preexisting clone can either be refreshed or created anew. (default is to refresh the existing clone)"
+        read -p "Format and create a new clone? [y/N]: " formatRequested
         formatRequested=${formatRequested:-N}
         formatRequested="${formatRequested:0:1}"
         formatRequested="${formatRequested,,}"
