@@ -32,11 +32,17 @@ main () {
 }
 
 #*******************fixgrub************************
+#originally written to clone partitions and inplace sed grub.cfg which I won't remove yet.
+#original sed edits are probably not needed if this works but I'll leave them for now.
+#possibly with the redundency, if one method fails, the other will succeed?
 fixgrub () {
 
 for i in /sys /run /dev /proc; do mount --bind "$i" "/media/$user/target$i"; done
 
-chroot /media/$user/target/ update-grub
+chroot /media/$user/target/ /bin/bash -- << EOT
+#was not working but seems unnecessary    grub-install $efipartition
+    update-grub
+EOT
 
 for i in /proc /dev /run /sys; do umount "/media/$user/target$i"; done
 
@@ -68,7 +74,11 @@ echo "making the clone"
     targetefiuuid=$(findmnt /media/$user/EFI/ -o UUID -n)
 
     rsync -rv --delete /boot/efi/ /media/$user/EFI/
-    sed -i "s/$sourceuuid/$targetuuid/" /media/$user/EFI/EFI/ubuntu/grub.cfg
+    
+#trying to make it more distro independent... not well tested
+    find /media/$user/EFI/ -name "grub.cfg" -exec sed -i "s/$sourceuuid/$targetuuid/" "{}" \;
+#old way proven to work on my Mint Mate installation but wouldn't work if grub.cfg is inside a differently named folder
+#    sed -i "s/$sourceuuid/$targetuuid/" /media/$user/EFI/EFI/ubuntu/grub.cfg
       
     rsync -axAXHv --exclude='/dev/*' --exclude='/proc/*' --exclude='/sys/*' --exclude='/tmp/*' --exclude='/run/*' --exclude='/mnt/*' --exclude='/media/*' --exclude='/lost+found/' --delete  / /media/$user/"$label"/
 
@@ -150,7 +160,7 @@ askifformatdesired () {
 gettarget () {
     while [ "$response" != "y" ]; do
         read -p "Enter the device to clone to [/dev/sdx]: " targetdevice
-        device=${device:-/dev/sdx}
+        targetdevice=${targetdevice:-/dev/sdx}
         read -p "Is $targetdevice correct [y/N]? " response
         response=${response:-N}
         response="${response:0:1}"
