@@ -31,184 +31,7 @@ main () {
     fixgrub;
 }
 
-#*******************fixgrub************************
-#originally written to clone partitions and inplace sed grub.cfg which I won't remove yet.
-#original sed edits are probably not needed if this works but I'll leave them for now.
-#possibly with the redundency, if one method fails, the other will succeed?
-fixgrub () {
-
-for i in /sys /run /dev /proc; do mount --bind "$i" "/media/$user/target$i"; done
-
-chroot /media/$user/target/ /bin/bash -- << EOT
-#was not working but seems unnecessary    grub-install $efipartition
-    update-grub
-EOT
-
-for i in /proc /dev /run /sys; do umount "/media/$user/target$i"; done
-
-umount /media/$user/EFI
-umount /media/$user/target
-
-rmdir /media/$user/target
-rmdir /media/$user/EFI
-
-echo "It is now okay to remove the target drive."
-}
-
-#*****************end fixgrub**********************
-
-#*******************doclone************************
-doclone () {
-echo "making the clone"
-    label="target"
-    mount /boot/efi
-    mkdir /media/$user/EFI
-    mount "$efipartition" /media/$user/EFI
-    mkdir /media/$user/$label
-    mount "$mainpartition" /media/$user/$label
-
-    sourceuuid=$(findmnt / -o UUID -n)
-    targetuuid=$(findmnt /media/$user/"$label" -o UUID -n)
-
-    sourceefiuuid=$(grep /boot/efi /etc/fstab | awk '{print $1}' | grep UUID | sed -E 's/UUID=(.*)/\1/' )
-    targetefiuuid=$(findmnt /media/$user/EFI/ -o UUID -n)
-
-    rsync -rv --delete /boot/efi/ /media/$user/EFI/
-    
-#trying to make it more distro independent... not well tested
-    find /media/$user/EFI/ -name "grub.cfg" -exec sed -i "s/$sourceuuid/$targetuuid/" "{}" \;
-#old way proven to work on my Mint Mate installation but wouldn't work if grub.cfg is inside a differently named folder
-#    sed -i "s/$sourceuuid/$targetuuid/" /media/$user/EFI/EFI/ubuntu/grub.cfg
-      
-    rsync -axAXHv --exclude='/dev/*' --exclude='/proc/*' --exclude='/sys/*' --exclude='/tmp/*' --exclude='/run/*' --exclude='/mnt/*' --exclude='/media/*' --exclude='/lost+found/' --delete  / /media/$user/"$label"/
-
-    sed -i "s/$sourceuuid/$targetuuid/" /media/$user/$label/etc/fstab
-    sed -i "s/$sourceuuid/$targetuuid/" /media/$user/$label/boot/grub/grub.cfg
-    sed -i "s/$sourceefiuuid/$targetefiuuid/" /media/$user/$label/etc/fstab
-
-    echo "Writing changes to target, do not remove!"
-
-    sync
-}
-
-#*******************doclone************************
-
-#*******************doformat************************
-doformat () {
-    if [[ $debug == "on" ]]; then echo "formatting $targetdevice"; fi
-    possiblelabel="$(hostname)usb"
-    echo
-    read -p "Enter a new label for the target device (e.g. [$possiblelabel]): " label
-    label=${label:-$possiblelabel}
-    echo "Label of target device will be: $label"
-    echo "This might take a few minutes, please be patient."
-    fdisk $targetdevice <<EOF
-g
-n
-1
-
-+512M
-t
-C12A7328-F81F-11D2-BA4B-00A0C93EC93B
-n
-2
-
-
-w
-EOF
-
-    echo "efi and ext4 partitions created successfully."
-    echo "The new partitions will now be formatted"
-    echo "This might take a few minutes, please be patient."
-    mkfs.fat -F32 -n EFI "$efipartition"
-    yes | mkfs.ext4 -L "$label" "$mainpartition"
-    sync
-
-}
-#******************end doformat*********************
-
-
-
-#*****************askifformatdesired*************************
-askifformatdesired () {
-
-    if [[ $targetneedsformatted == "true" ]]; then
-        echo -e "\n"
-        read -p "Target device ($targetdevice) needs formatting, is that okay? [y/N]: " formatRequested
-        formatRequested=${formatRequested:-N}
-        formatRequested="${formatRequested:0:1}"
-        formatRequested="${formatRequested,,}"
-        if [[ $formatRequested != "y" ]]; then 
-            echo "Format needed but refused, aborting."
-            exit;
-        fi
-    else #format not needed but still an option
-        if [[ $debug == "on" ]]; then echo "$targetdevice has preexisting partitions."; fi
-        echo -e "\nTarget has preexisting clone."
-        echo -e "Preexisting clone can either be refreshed or created anew. (default is to refresh the existing clone)"
-        read -p "Format and create a new clone? [y/N]: " formatRequested
-        formatRequested=${formatRequested:-N}
-        formatRequested="${formatRequested:0:1}"
-        formatRequested="${formatRequested,,}"
-    fi
-}
-#**************end askifformatdesired************************
-
-
-
-#*********************gettarget******************************
-gettarget () {
-    while [ "$response" != "y" ]; do
-        read -p "Enter the device to clone to [/dev/sdx]: " targetdevice
-        targetdevice=${targetdevice:-/dev/sdx}
-        read -p "Is $targetdevice correct [y/N]? " response
-        response=${response:-N}
-        response="${response:0:1}"
-        response="${response,,}"
-    done
-}
-#***********************end gettarget****************************
-
-#************************checktarget*****************************
-
-
-checktarget () {
-    if [[ $debug == "on" ]]; then echo "checking target: ($targetdevice)"; fi
-    numtargetpartitions=$(lsblk -nlpo NAME,TYPE $targetdevice | awk '$2=="part"{print $1}' | wc -l)
-
-    if [[ $debug == "on" ]]; then echo "Okay, found $numtargetpartitions partitions on target device ($targetdevice)"; fi
-
-
-    if [[ $targetdevice == *"nvme"* ]]; then
-        efipartition="$targetdevice"p1
-        mainpartition="$targetdevice"p2
-    else
-        efipartition="$targetdevice"1
-        mainpartition="$targetdevice"2
-    fi
-
-    efishort=$(echo $efipartition | awk -F'/' '{print $3}')
-    mainshort=$(echo $mainpartition | awk -F'/' '{print $3}')
-
-    part1type=$(lsblk -o name,parttypename | grep $efishort | awk -F "$efishort" '{print $2}' | sed 's/^[[:space:]]*//')
-    if [[ $debug == "on" ]]; then echo "partition type on first partition of target device is: $part1type"; fi
-
-    part2type=$(lsblk -o name,parttypename | grep $mainshort | awk -F "$mainshort" '{print $2}' | sed 's/^[[:space:]]*//')
-    if [[ $debug == "on" ]]; then echo "partition type on second partition of target device is $part2type"; fi
-
-    if [[ $part1type != "EFI System"  || $part2type != "Linux filesystem" ]]; then
-        if [[ $debug == "on" ]]; then echo "Partitions are wrong type, will need to format the target device."; fi
-        targetneedsformatted="true"
-    else
-        if [[ $debug == "on" ]]; then echo "Target partitions are the correct type, $targetdevice is eligible to be cloned without formatting..."; fi
-        targetneedsformatted="false"
-    fi
-}
-#**********************end checktarget***************************
-
-
 #*************************determinesource******************************
-
 determinesource () {
      slashmountedonpartition=$(mount | grep " / " | awk '{print $1}')
 
@@ -265,6 +88,173 @@ if [[ $debug == "on" ]]; then echo "Okay, partitions are correct, $sourcedevice 
 }
 #***********************end checksource****************************
 
+#*********************gettarget******************************
+gettarget () {
+    while [ "$response" != "y" ]; do
+        read -p "Enter the device to clone to [/dev/sdx]: " targetdevice
+        targetdevice=${targetdevice:-/dev/sdx}
+        read -p "Is $targetdevice correct [y/N]? " response
+        response=${response:-N}
+        response="${response:0:1}"
+        response="${response,,}"
+    done
+}
+#***********************end gettarget****************************
 
+#************************checktarget*****************************
+checktarget () {
+    if [[ $debug == "on" ]]; then echo "checking target: ($targetdevice)"; fi
+    numtargetpartitions=$(lsblk -nlpo NAME,TYPE $targetdevice | awk '$2=="part"{print $1}' | wc -l)
+
+    if [[ $debug == "on" ]]; then echo "Okay, found $numtargetpartitions partitions on target device ($targetdevice)"; fi
+
+
+    if [[ $targetdevice == *"nvme"* ]]; then
+        efipartition="$targetdevice"p1
+        mainpartition="$targetdevice"p2
+    else
+        efipartition="$targetdevice"1
+        mainpartition="$targetdevice"2
+    fi
+
+    efishort=$(echo $efipartition | awk -F'/' '{print $3}')
+    mainshort=$(echo $mainpartition | awk -F'/' '{print $3}')
+
+    part1type=$(lsblk -o name,parttypename | grep $efishort | awk -F "$efishort" '{print $2}' | sed 's/^[[:space:]]*//')
+    if [[ $debug == "on" ]]; then echo "partition type on first partition of target device is: $part1type"; fi
+
+    part2type=$(lsblk -o name,parttypename | grep $mainshort | awk -F "$mainshort" '{print $2}' | sed 's/^[[:space:]]*//')
+    if [[ $debug == "on" ]]; then echo "partition type on second partition of target device is $part2type"; fi
+
+    if [[ $part1type != "EFI System"  || $part2type != "Linux filesystem" ]]; then
+        if [[ $debug == "on" ]]; then echo "Partitions are wrong type, will need to format the target device."; fi
+        targetneedsformatted="true"
+    else
+        if [[ $debug == "on" ]]; then echo "Target partitions are the correct type, $targetdevice is eligible to be cloned without formatting..."; fi
+        targetneedsformatted="false"
+    fi
+}
+#**********************end checktarget***************************
+
+#*****************askifformatdesired*************************
+askifformatdesired () {
+
+    if [[ $targetneedsformatted == "true" ]]; then
+        echo -e "\n"
+        read -p "Target device ($targetdevice) needs formatting, is that okay? [y/N]: " formatRequested
+        formatRequested=${formatRequested:-N}
+        formatRequested="${formatRequested:0:1}"
+        formatRequested="${formatRequested,,}"
+        if [[ $formatRequested != "y" ]]; then 
+            echo "Format needed but refused, aborting."
+            exit;
+        fi
+    else #format not needed but still an option
+        if [[ $debug == "on" ]]; then echo "$targetdevice has preexisting partitions."; fi
+        echo -e "\nTarget has preexisting clone."
+        echo -e "Preexisting clone can either be refreshed or created anew. (default is to refresh the existing clone)"
+        read -p "Format and create a new clone? [y/N]: " formatRequested
+        formatRequested=${formatRequested:-N}
+        formatRequested="${formatRequested:0:1}"
+        formatRequested="${formatRequested,,}"
+    fi
+}
+#**************end askifformatdesired************************
+
+#*******************doformat************************
+doformat () {
+    if [[ $debug == "on" ]]; then echo "formatting $targetdevice"; fi
+    possiblelabel="$(hostname)usb"
+    echo
+    read -p "Enter a new label for the target device (e.g. [$possiblelabel]): " label
+    label=${label:-$possiblelabel}
+    echo "Label of target device will be: $label"
+    echo "This might take a few minutes, please be patient."
+    fdisk $targetdevice <<EOF
+g
+n
+1
+
++512M
+t
+C12A7328-F81F-11D2-BA4B-00A0C93EC93B
+n
+2
+
+
+w
+EOF
+
+    echo "efi and ext4 partitions created successfully."
+    echo "The new partitions will now be formatted"
+    echo "This might take a few minutes, please be patient."
+    mkfs.fat -F32 -n EFI "$efipartition"
+    yes | mkfs.ext4 -L "$label" "$mainpartition"
+    sync
+
+}
+#******************end doformat*********************
+
+#*******************doclone************************
+doclone () {
+echo "making the clone"
+    label="target"
+    mount /boot/efi
+    mkdir /media/$user/EFI
+    mount "$efipartition" /media/$user/EFI
+    mkdir /media/$user/$label
+    mount "$mainpartition" /media/$user/$label
+
+    sourceuuid=$(findmnt / -o UUID -n)
+    targetuuid=$(findmnt /media/$user/"$label" -o UUID -n)
+
+    sourceefiuuid=$(grep /boot/efi /etc/fstab | awk '{print $1}' | grep UUID | sed -E 's/UUID=(.*)/\1/' )
+    targetefiuuid=$(findmnt /media/$user/EFI/ -o UUID -n)
+
+    rsync -rv --delete /boot/efi/ /media/$user/EFI/
+    
+#trying to make it more distro independent... not well tested
+    find /media/$user/EFI/ -name "grub.cfg" -exec sed -i "s/$sourceuuid/$targetuuid/" "{}" \;
+#old way proven to work on my Mint Mate installation but wouldn't work if grub.cfg is inside a differently named folder
+#    sed -i "s/$sourceuuid/$targetuuid/" /media/$user/EFI/EFI/ubuntu/grub.cfg
+      
+    rsync -axAXHv --exclude='/dev/*' --exclude='/proc/*' --exclude='/sys/*' --exclude='/tmp/*' --exclude='/run/*' --exclude='/mnt/*' --exclude='/media/*' --exclude='/lost+found/' --delete  / /media/$user/"$label"/
+
+    sed -i "s/$sourceuuid/$targetuuid/" /media/$user/$label/etc/fstab
+    sed -i "s/$sourceuuid/$targetuuid/" /media/$user/$label/boot/grub/grub.cfg
+    sed -i "s/$sourceefiuuid/$targetefiuuid/" /media/$user/$label/etc/fstab
+
+    echo "Writing changes to target, do not remove!"
+
+    sync
+}
+
+#*******************doclone************************
+
+#*******************fixgrub************************
+#originally written to clone partitions and inplace sed grub.cfg which I'll leave for now.
+#original sed edits are probably not needed if fixgrub succeeds.
+#Maybe with the redundency, if one method fails, the other will succeed?
+fixgrub () {
+
+for i in /sys /run /dev /proc; do mount --bind "$i" "/media/$user/target$i"; done
+
+chroot /media/$user/target/ /bin/bash -- << EOT
+#was not working but seems unnecessary    grub-install $efipartition
+    update-grub
+EOT
+
+for i in /proc /dev /run /sys; do umount "/media/$user/target$i"; done
+
+umount /media/$user/EFI
+umount /media/$user/target
+
+rmdir /media/$user/target
+rmdir /media/$user/EFI
+
+echo "It is now okay to remove the target drive."
+}
+
+#*****************end fixgrub**********************
 
 main
