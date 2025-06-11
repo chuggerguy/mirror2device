@@ -1,18 +1,17 @@
 #!/bin/bash
-#Caution, do not run unless you already have a backup you trust.
-#I've ran this on my machine enough that I trust it.
-#You should not trust any new backup plan until you've not only
-#used it to backup, but also to restore.
-#Just because this works for me, that doesn't mean it will work for you.
-#Use at your own risk, I'm just any amateur.
-#That said, it's served me well. :)
+# Caution, do not run unless you already have a backup you trust.
+# I run this on my machine and I trust it.
+# But you should not trust a new backup plan unless you've not only
+# used it to backup, but also to do a successful restore.
+# This works for me, but it might not work for you.
+# Use at your own risk, I'm only an amateur, I miss up sometimes.
+# That said, it seems to work for me.
 #
 
 if [ "$(id -u)" != "0" ]; then
   exec sudo "$0" "$@"
 fi
 
-debug="off"
 user="$SUDO_USER"
 hostname=$(hostname)
 
@@ -40,15 +39,12 @@ determinesource () {
      else
         sourcedevice=${slashmountedonpartition::-1}
     fi
-    if [[ $debug == "on" ]]; then echo "sourcedevice is $sourcedevice"; fi
 }
 #***********************end determinesource****************************
 
 #***********************checksource****************************
 checksource () {
 numpartitions=$(lsblk -nlpo NAME,TYPE $sourcedevice | awk '$2=="part"{print $1}' | wc -l)
-
-if [[ $debug == "on" ]]; then echo "Okay, found $numpartitions partitions on source drive ($sourcedevice)"; fi
 
 if [ $numpartitions != 2 ]; then
     echo "Sorry, this script only works with 2 specific partitions"
@@ -72,10 +68,8 @@ mainshort=$(echo $mainpartition | awk -F'/' '{print $3}')
 #echo "efishort is: $efishort"
 
 part1type=$(lsblk -o name,parttypename | grep $efishort | awk -F "$efishort" '{print $2}' | sed 's/^[[:space:]]*//')
-if [[ $debug == "on" ]]; then echo "part1type is: $part1type"; fi
 
 part2type=$(lsblk -o name,parttypename | grep $mainshort | awk -F "$mainshort" '{print $2}' | sed 's/^[[:space:]]*//')
-if [[ $debug == "on" ]]; then echo "part2type is $part2type"; fi
 
 if [[ $part1type != "EFI System"  || $part2type != "Linux filesystem" ]]; then
     echo "Sorry, partitions are wrong type"
@@ -84,7 +78,6 @@ if [[ $part1type != "EFI System"  || $part2type != "Linux filesystem" ]]; then
     exit 2
 fi
 
-if [[ $debug == "on" ]]; then echo "Okay, partitions are correct, $sourcedevice is eligible to be cloned..."; fi
 }
 #***********************end checksource****************************
 
@@ -103,11 +96,7 @@ gettarget () {
 
 #************************checktarget*****************************
 checktarget () {
-    if [[ $debug == "on" ]]; then echo "checking target: ($targetdevice)"; fi
     numtargetpartitions=$(lsblk -nlpo NAME,TYPE $targetdevice | awk '$2=="part"{print $1}' | wc -l)
-
-    if [[ $debug == "on" ]]; then echo "Okay, found $numtargetpartitions partitions on target device ($targetdevice)"; fi
-
 
     if [[ $targetdevice == *"nvme"* ]]; then
         efipartition="$targetdevice"p1
@@ -121,16 +110,12 @@ checktarget () {
     mainshort=$(echo $mainpartition | awk -F'/' '{print $3}')
 
     part1type=$(lsblk -o name,parttypename | grep $efishort | awk -F "$efishort" '{print $2}' | sed 's/^[[:space:]]*//')
-    if [[ $debug == "on" ]]; then echo "partition type on first partition of target device is: $part1type"; fi
 
     part2type=$(lsblk -o name,parttypename | grep $mainshort | awk -F "$mainshort" '{print $2}' | sed 's/^[[:space:]]*//')
-    if [[ $debug == "on" ]]; then echo "partition type on second partition of target device is $part2type"; fi
 
     if [[ $part1type != "EFI System"  || $part2type != "Linux filesystem" ]]; then
-        if [[ $debug == "on" ]]; then echo "Partitions are wrong type, will need to format the target device."; fi
         targetneedsformatted="true"
     else
-        if [[ $debug == "on" ]]; then echo "Target partitions are the correct type, $targetdevice is eligible to be cloned without formatting..."; fi
         targetneedsformatted="false"
     fi
 }
@@ -150,7 +135,6 @@ askifformatdesired () {
             exit;
         fi
     else #format not needed but still an option
-        if [[ $debug == "on" ]]; then echo "$targetdevice has preexisting partitions."; fi
         echo -e "\nTarget has preexisting clone."
         echo -e "Preexisting clone can either be refreshed or created anew. (default is to refresh the existing clone)"
         read -p "Format and create a new clone? [y/N]: " formatRequested
@@ -163,7 +147,6 @@ askifformatdesired () {
 
 #*******************doformat************************
 doformat () {
-    if [[ $debug == "on" ]]; then echo "formatting $targetdevice"; fi
     possiblelabel="$(hostname)usb"
     echo
     read -p "Enter a new label for the target device (e.g. [$possiblelabel]): " label
@@ -200,9 +183,9 @@ doclone () {
 echo "making the clone"
     label="target"
     mount /boot/efi
-    mkdir /media/$user/EFI
+    mkdir -p /media/$user/EFI
     mount "$efipartition" /media/$user/EFI
-    mkdir /media/$user/$label
+    mkdir -p /media/$user/$label
     mount "$mainpartition" /media/$user/$label
 
     sourceuuid=$(findmnt / -o UUID -n)
