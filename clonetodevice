@@ -215,15 +215,11 @@ echo "making the clone"
 #*******************doclone************************
 
 #*******************fixgrub************************
-#originally written to clone partitions and inplace sed grub.cfg which I'll leave for now.
-#original sed edits are probably not needed if fixgrub succeeds.
-#Maybe with the redundency, if one method fails, the other will succeed?
 fixgrub () {
 
 for i in /sys /run /dev /proc; do mount --bind "$i" "/media/$user/target$i"; done
 
 chroot /media/$user/target/ /bin/bash -- << EOT
-#was not working but seems unnecessary    grub-install $efipartition
     update-grub
 EOT
 
