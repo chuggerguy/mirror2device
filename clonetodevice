@@ -1,11 +1,13 @@
 #!/bin/bash
 # Caution, do not run unless you already have a backup you trust.
 # I run this on my machine and I trust it.
-# But you should not trust a new backup plan unless you've not only
+# You should not trust a new backup plan unless you've not only
 # used it to backup, but also to do a successful restore.
 # This works for me, but it might not work for you.
-# Use at your own risk, I'm only an amateur, I miss up sometimes.
-# That said, it seems to work for me.
+# I run Mint Mate with a standard two partition install. If you've done custom partitioning (separate home/swap/etc partitions)
+# it won't work for you. I made an attempt to assess whether it will work for you or not but, not guarantees)
+# Use at your own risk, I'm only an amateur, I mess up sometimes.
+# That said, it works for me. Feel free to try it. (maybe try cloning to USB first?)
 #
 
 if [ "$(id -u)" != "0" ]; then
