@@ -1,4 +1,4 @@
-A simple backup script written for my personal use.
+A simple backup script written for my personal use. (cloning/backing up my Mint Mate installs, it may or may not work with other distros)
 It rsyncs current booted Linux OS to a different device. Device can be USB or internal. /dev/sdx or /dev/nvmexnx
 Written and tested using Mint Mate but may work with other Linux distros, at least as long as
 drives are identified in /etc/fstab by UUID.
