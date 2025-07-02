@@ -19,3 +19,5 @@ I also clone to a USB Flash drive so I have another backup.
 
 Disclaimer: I realize this does not produce a true drive clone. It's not a bit by bit copy of the drive. Perhaps it should be called an OS clone? Or maybe not. :)
 If you decide to try it, I'd suggest you test it on a spare USB flash device. 
+This is a boring video of it in action. I had just got a new flash drive so it includes formatting.
+https://www.youtube.com/watch?v=nJhGow-jPwg
