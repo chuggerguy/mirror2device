@@ -28,7 +28,9 @@ main () {
     else
         echo "skipping format";
     fi
+    stopservices;
     doclone;
+    restartservices;
     fixgrub;
 }
 
@@ -180,6 +182,15 @@ EOF
 }
 #******************end doformat*********************
 
+#*****************stopservices**********************
+stopservices () {
+
+systemctl stop cron
+systemctl stop mysql
+
+}
+#***************end stopservices** *****************
+
 #*******************doclone************************
 doclone () {
 echo "making the clone"
@@ -213,8 +224,16 @@ echo "making the clone"
 
     sync
 }
-
 #*******************doclone************************
+
+#***************restartservices********************
+restartservices () {
+
+    systemctl start cron
+    systemctl start mysql
+
+}
+#**************end restartservices*****************
 
 #*******************fixgrub************************
 fixgrub () {
