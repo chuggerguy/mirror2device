@@ -19,7 +19,9 @@ hostname=$(hostname)
 
 main () {
     determinesource;
-    checksource;
+    if [ "$1" != "skipcheck" ]; then 
+        checksource;
+    fi
     gettarget;
     checktarget;
     askifformatdesired;
@@ -101,7 +103,6 @@ gettarget () {
 #************************checktarget*****************************
 checktarget () {
     numtargetpartitions=$(lsblk -nlpo NAME,TYPE $targetdevice | awk '$2=="part"{print $1}' | wc -l)
-    if [ $numtargetpartitions != 2 ]; then echo "Found $numtargetpartitions partitions on $targetdevice"; fi
 
     if [[ $targetdevice == *"nvme"* ]]; then
         efipartition="$targetdevice"p1
@@ -118,7 +119,7 @@ checktarget () {
 
     part2type=$(lsblk -o name,parttypename | grep $mainshort | awk -F "$mainshort" '{print $2}' | sed 's/^[[:space:]]*//')
 
-    if [[ $part1type != "EFI System"  || $part2type != "Linux filesystem" || $numtargetpartitions != 2 ]]; then
+    if [[ $part1type != "EFI System"  || $part2type != "Linux filesystem" ]]; then
         targetneedsformatted="true"
     else
         targetneedsformatted="false"
