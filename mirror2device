@@ -16,11 +16,15 @@ fi
 
 user="$SUDO_USER"
 hostname=$(hostname)
+skipcheck="$1"
 
 main () {
     determinesource;
-    if [ "$1" != "skipcheck" ]; then 
+    if [ "$skipcheck" == "skipcheck" ]; then
+        echo "Do not check the source requested so skipping"
+    else
         checksource;
+        echo "Checking source"
     fi
     gettarget;
     checktarget;
@@ -136,7 +140,7 @@ askifformatdesired () {
         formatRequested=${formatRequested:-N}
         formatRequested="${formatRequested:0:1}"
         formatRequested="${formatRequested,,}"
-        if [[ $formatRequested != "y" ]]; then 
+        if [[ $formatRequested != "y" ]]; then
             echo "Format needed but refused, aborting."
             exit;
         fi
@@ -210,12 +214,12 @@ echo "making the clone"
     targetefiuuid=$(findmnt /media/$user/EFI/ -o UUID -n)
 
     rsync -rv --delete /boot/efi/ /media/$user/EFI/
-    
+
 #trying to make it more distro independent... not well tested
     find /media/$user/EFI/ -name "grub.cfg" -exec sed -i "s/$sourceuuid/$targetuuid/" "{}" \;
 #old way proven to work on my Mint Mate installation but wouldn't work if grub.cfg is inside a differently named folder
 #    sed -i "s/$sourceuuid/$targetuuid/" /media/$user/EFI/EFI/ubuntu/grub.cfg
-      
+
     rsync -axAXHv --exclude='/dev/*' --exclude='/proc/*' --exclude='/sys/*' --exclude='/tmp/*' --exclude='/run/*' --exclude='/mnt/*' --exclude='/media/*' --exclude='/lost+found/' --delete  / /media/$user/"$label"/
 
     sed -i "s/$sourceuuid/$targetuuid/" /media/$user/$label/etc/fstab
