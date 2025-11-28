@@ -250,6 +250,8 @@ chroot /media/$user/target/ /bin/bash -- << EOT
     update-grub
 EOT
 
+sync ; sleep 10 # give sync more time to finish syncing (had target busy, unable to dismount error)
+
 for i in /proc /dev /run /sys; do umount "/media/$user/target$i"; done
 
 umount /media/$user/EFI
