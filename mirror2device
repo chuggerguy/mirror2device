@@ -213,6 +213,11 @@ echo "making the clone"
     sourceefiuuid=$(grep /boot/efi /etc/fstab | awk '{print $1}' | grep UUID | sed -E 's/UUID=(.*)/\1/' )
     targetefiuuid=$(findmnt /media/$user/EFI/ -o UUID -n)
 
+    sourceefilabel=$(findmnt -no label /boot/efi)
+    sourcelabel=$(findmnt -no label /)
+    targetlabel=$(findmnt -no label /media/$user/target)
+    targetefilabel=${targetlabel^^}EFI
+
     rsync -rv --delete /boot/efi/ /media/$user/EFI/
 
 #trying to make it more distro independent... not well tested
@@ -222,9 +227,11 @@ echo "making the clone"
 
     rsync -axAXHv --exclude='/dev/*' --exclude='/proc/*' --exclude='/sys/*' --exclude='/tmp/*' --exclude='/run/*' --exclude='/mnt/*' --exclude='/media/*' --exclude='/lost+found/' --delete  / /media/$user/"$label"/
 
-    sed -i "s/$sourceuuid/$targetuuid/" /media/$user/$label/etc/fstab
     sed -i "s/$sourceuuid/$targetuuid/" /media/$user/$label/boot/grub/grub.cfg
-    sed -i "s/$sourceefiuuid/$targetefiuuid/" /media/$user/$label/etc/fstab
+
+[[ $(grep " / " /etc/fstab | grep -i UUID) ]] && sed -i "s/$sourceuuid/$targetuuid/" /media/$user/$label/etc/fstab || sed -i "s/$sourcelabel/$targetlabel/" /media/$user/$label/etc/fstab
+
+[[ $(grep "/boot/efi" /etc/fstab | grep -i UUID) ]] && sed -i "s/$sourceefiuuid/$targetefiuuid/" /media/$user/$label/etc/fstab || sed -i "s/$sourceefilabel/$targetefilabel/" /media/$user/$label/etc/fstab
 
     sync
 }
