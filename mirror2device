@@ -181,7 +181,7 @@ EOF
     echo "efi and ext4 partitions created successfully."
     echo "The new partitions will now be formatted"
     echo "This might take a few minutes, please be patient."
-    mkfs.fat -F32 -n EFI "$efipartition"
+    mkfs.fat -F32 -n ${label^^}EFI "$efipartition"
     yes | mkfs.ext4 -L "$label" "$mainpartition"
     sync
 
