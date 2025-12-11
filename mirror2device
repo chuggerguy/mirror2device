@@ -42,13 +42,9 @@ main () {
 
 #*************************determinesource******************************
 determinesource () {
-     slashmountedonpartition=$(mount | grep " / " | awk '{print $1}')
 
-    if [[ $slashmountedonpartition == *"nvme"* ]]; then
-        sourcedevice=${slashmountedonpartition::-2}
-     else
-        sourcedevice=${slashmountedonpartition::-1}
-    fi
+    sourcedevice=/dev/$(lsblk -no PKNAME "$(findmnt -no SOURCE -T /)")
+
 }
 #***********************end determinesource****************************
 
