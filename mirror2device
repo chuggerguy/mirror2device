@@ -62,9 +62,12 @@ fi
 if [[ $sourcedevice == *"nvme"* ]]; then
     efipartition="$sourcedevice"p1
     mainpartition="$sourcedevice"p2
-else
+elif [[ $sourcedevice == *"sd"* ]]; then
     efipartition="$sourcedevice"1
     mainpartition="$sourcedevice"2
+elif [[ $sourcedevice == *"mmcblk"* ]]; then
+    efipartition="$sourcedevice"p1
+    mainpartition="$sourcedevice"p2
 fi
 
 efishort=$(echo $efipartition | awk -F'/' '{print $3}')
@@ -107,9 +110,12 @@ checktarget () {
     if [[ $targetdevice == *"nvme"* ]]; then
         efipartition="$targetdevice"p1
         mainpartition="$targetdevice"p2
-    else
+    elif [[ $targetdevice == *"sd"* ]]; then
         efipartition="$targetdevice"1
         mainpartition="$targetdevice"2
+    elif [[ $targetdevice == *"mmcblk"* ]]; then
+        efipartition="$targetdevice"p1
+        mainpartition="$targetdevice"p2
     fi
 
     efishort=$(echo $efipartition | awk -F'/' '{print $3}')
