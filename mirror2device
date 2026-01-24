@@ -250,7 +250,7 @@ restartservices () {
 
 #*******************fixgrub************************
 fixgrub () {
-
+echo "Making the target device bootable... Please be patient."
 for i in /sys /run /dev /proc; do mount --bind "$i" "/media/$user/target$i"; done
 
 chroot /media/$user/target/ /bin/bash -- << EOT
@@ -258,7 +258,7 @@ chroot /media/$user/target/ /bin/bash -- << EOT
 EOT
 
 echo "Writing changes to target, do not remove!"
-sync ; sleep 10 # give sync more time to finish syncing (had target busy, unable to dismount error)
+sync ; sleep 10 # give sync more time to finish syncing (had target busy, unable to dismount error, may need to increase with slower targets?)
 
 for i in /proc /dev /run /sys; do umount "/media/$user/target$i"; done
 
