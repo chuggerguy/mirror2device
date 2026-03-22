@@ -222,12 +222,20 @@ echo "making the clone"
 
     rsync -rv --delete /boot/efi/ /media/$user/EFI/
 
-#trying to make it more distro independent... not well tested
     find /media/$user/EFI/ -name "grub.cfg" -exec sed -i "s/$sourceuuid/$targetuuid/" "{}" \;
-#old way proven to work on my Mint Mate installation but wouldn't work if grub.cfg is inside a differently named folder
-#    sed -i "s/$sourceuuid/$targetuuid/" /media/$user/EFI/EFI/ubuntu/grub.cfg
 
-    rsync -axAXHv --exclude='/dev/*' --exclude='/proc/*' --exclude='/sys/*' --exclude='/tmp/*' --exclude='/run/*' --exclude='/mnt/*' --exclude='/media/*' --exclude='/lost+found/' --delete  / /media/$user/"$label"/
+    rsync -axAXHv \
+--exclude='/home/*/.cache' \
+--exclude='/home/*/.gvfs' \
+--exclude='/dev/*' \
+--exclude='/proc/*' \
+--exclude='/sys/*' \
+--exclude='/tmp/*' \
+--exclude='/run/*' \
+--exclude='/mnt/*' \
+--exclude='/media/*' \
+--exclude='/lost+found' \
+--delete / /media/$user/"$label"/
 
     sed -i "s/$sourceuuid/$targetuuid/" /media/$user/$label/boot/grub/grub.cfg
 
@@ -250,7 +258,7 @@ restartservices () {
 
 #*******************fixgrub************************
 fixgrub () {
-echo "Making the target device bootable... Please be patient."
+echo -e "\nMaking the target device bootable... Please be patient."
 for i in /sys /run /dev /proc; do mount --bind "$i" "/media/$user/target$i"; done
 
 chroot /media/$user/target/ /bin/bash -- << EOT
