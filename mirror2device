@@ -35,7 +35,7 @@ main () {
         echo "skipping format";
     fi
     stopservices;
-    doclone;
+    domirror;
     restartservices;
     fixgrub;
 }
@@ -92,14 +92,34 @@ fi
 
 #*********************gettarget******************************
 gettarget () {
-    while [ "$response" != "y" ]; do
-        read -p "Enter the device to clone to [/dev/sdx]: " targetdevice
-        targetdevice=${targetdevice:-/dev/sdx}
-        read -p "Is $targetdevice correct [y/N]? " response
-        response=${response:-N}
-        response="${response:0:1}"
+    local target=""
+    local response="n"
+
+    while [[ "$response" != "y" ]]; do
+        read -p "Enter the device to mirror to [sdX|nvmeNnX]: " target
+        target="${target#/dev/}"
+
+        if [[ -z "$target" ]]; then
+            echo "Error: Input cannot be blank."
+            continue
+        elif [[ ! -e "/dev/$target" ]]; then
+            echo "Error: /dev/$target does not exist. Check 'lsblk'."
+            continue
+        fi
+
+        read -p "Target is /dev/$target. Continue? [y/N]: " response
         response="${response,,}"
+        response="${response:0:1}"
     done
+
+    targetdevice="/dev/$target"
+
+    # Unmount all partitions on the target device to be safe (suggested by Gemini, is it necessary?)
+    # udisksctl unmount -bf /dev/${target}* not working. Why not?
+    echo "Unmounting /dev/${target} to avoid possible corruption..."
+    udisksctl unmount -bf /dev/${target}1 2>/dev/null
+    udisksctl unmount -bf /dev/${target}2 2>/dev/null
+    exit
 }
 #***********************end gettarget****************************
 
@@ -147,9 +167,9 @@ askifformatdesired () {
             exit;
         fi
     else #format not needed but still an option
-        echo -e "\nTarget has preexisting clone."
-        echo -e "Preexisting clone can either be refreshed or created anew. (default is to refresh the existing clone)"
-        read -p "Format and create a new clone? [y/N]: " formatRequested
+        echo -e "\nTarget has preexisting mirror."
+        echo -e "Preexisting mirror can either be refreshed or created anew. (default is to refresh the existing mirror)"
+        read -p "Format and create a new mirror? [y/N]: " formatRequested
         formatRequested=${formatRequested:-N}
         formatRequested="${formatRequested:0:1}"
         formatRequested="${formatRequested,,}"
@@ -199,9 +219,9 @@ systemctl stop mysql
 }
 #***************end stopservices** *****************
 
-#*******************doclone************************
-doclone () {
-echo "making the clone"
+#*******************domirror************************
+domirror () {
+echo "making the mirror"
     label="target"
     mount /boot/efi
     mkdir -p /media/$user/EFI
@@ -245,7 +265,7 @@ echo "making the clone"
 
     sync
 }
-#*******************doclone************************
+#*******************domirror************************
 
 #***************restartservices********************
 restartservices () {
