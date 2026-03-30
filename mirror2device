@@ -119,7 +119,6 @@ gettarget () {
     echo "Unmounting /dev/${target} to avoid possible corruption..."
     udisksctl unmount -bf /dev/${target}1 2>/dev/null
     udisksctl unmount -bf /dev/${target}2 2>/dev/null
-    exit
 }
 #***********************end gettarget****************************
 
