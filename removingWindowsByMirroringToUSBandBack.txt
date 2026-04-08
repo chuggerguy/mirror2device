@@ -1,6 +1,11 @@
-This only has a chance of working if you did a standard 2 partition install. You must have an ext4 partition mounted at slash and a fat32 efi partition mounted at /boot/efi. If you have separate home, boot, swap or any non-standard partitioning, this will not work. But if you let the installer do the partitioning, there's a good chance it will work. Personally, I'd open gnome-disks and look at the source. Only the two partitions mentioned above should be mounted.
+This only has a chance of working if you did a standard 2 partition install.
+You must have an ext4 partition mounted at slash and a fat32 efi partition mounted at /boot/efi.
+If you have separate home, boot, swap or any non-standard partitioning, this will not work.
+But if you let the installer do the partitioning, there's a good chance it will work.
+Personally, I'd open gnome-disks and look at the source. Only the two partitions mentioned above should be mounted.
 
-Not guarenteed to work in any case but as long as you're careful to target the USB device, you'll likely waste nothing but time. If it works, you'll save lots of time.
+Not guarenteed to work in any case but as long as you're careful to target the USB device,
+you'll likely waste nothing but time. If it works, you'll save lots of time.
 
 Probably the easiest way to find out if it will work is:
 
