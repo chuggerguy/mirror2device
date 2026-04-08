@@ -11,23 +11,46 @@ Probably the easiest way to find out if it will work is:
 
     1. click the green "Code" button and select "Download ZIP"
     2. extract it (I'd just right-click and "Extract Here"
-    3. make the file called "mirror2device" executable (either chmod +x mirror2device or right-click set it executable there)
+    3. make the file called "mirror2device" executable (either chmod +x mirror2device or right-click
+       set it executable there)
     4. insert a USB flash drive that you don't mind overwriting
     5. open gnome-disks and note the device of the flash drive. (something like /dev/sdb, not /dev/sdb1)
-    6. make double sure you get the last step correct, the script will overwrite whatever you point it at so you want to be sure not to point it at the wrong drive
-    7. open a terminal in the same folder as the file called mirror2device and run it like this: sudo ./mirror2device skipcheck (skipcheck is needed because your source drive contains Windows partitions) (it will refuse to run without skipcheck unless the source partitions are just right)
-    8. it will ask you to enter the device to clone to. Answer with the device you found in step 5 (/dev/sdb or whatever your flash drive happens to be... double check to be sure)
-    9. getting the last step correct is important enough it will ask if you're sure, answer "y" only if you are
-    10.  next you will be told that the flash needs formatted, enter "y" if you're still sure you want to try this
-    11.  now it will ask for a label for the target device and take a guess at it (enter whatever you want or just hit enter)
-    12.  it will now partition and format the flash drive, just 2 basic partitions (500MB FAT32 EFI for boot files and the remainder as EXT4 for your system files
-    13.  when the formatting completes, it will copy files to the flash drive and make it bootable. Do not remove the device until told it is safe to do so. (It may have written bytes to buffer and appear finished but not really be finished... so wait)
+    6. make double sure you get the last step correct, the script will overwrite whatever you point it at
+       so you want to be sure not to point it at the wrong drive
+    7. open a terminal in the same folder as the file called mirror2device and run it like this:
+       sudo ./mirror2device skipcheck
+       (skipcheck is needed because your source drive contains Windows partitions)
+       (it will refuse to run without skipcheck unless the source partitions are just right)
+    8. it will ask you to enter the device to clone to. Answer with the device you found in step 5
+       (/dev/sdb or whatever your flash drive happens to be... double check to be sure)
+    9. getting the last step correct is important enough it will ask if you're sure, answer "y" only if you are.
+    10. next you will be told that the flash needs formatted, enter "y" if you're still sure you want to try this
+    11. now it will ask for a label for the target device and take a guess at it
+        (enter whatever you want or just hit enter)
+    12.  it will now partition and format the flash drive, just 2 basic partitions (500MB FAT32 EFI for boot files
+         and the remainder as EXT4 for your system files
+    13.  when the formatting completes, it will copy files to the flash drive and make it bootable.
+         Do not remove the device until told it is safe to do so. (It may have written bytes to buffer and
+         appear finished but not really be finished... so wait)
 
-Depending on the speed of your flash drive, it might take awhile but once done it will tell you it's okay to remove the target device. You can leave it in. You should be able to reboot and hit F12 or whatever key brings up your UEFI boot menu. Select the USB drive and... assuming it worked, it will boot and run identically (except for speed) to your internal drive. Test running from the flash drive, maybe go into gnome-disks and make sure you are indeed running from the flash drive.
-If any of the above fails, I apologize. I have only my own computer to test it on and that's what I wrote it for. I use Mint with MATE desktop, default two partition install.
-If the USB flash does boot and runs to you satisfaction and you're convinced it succeeded, well, you'll have the same mirror script setting there on the flash drive too. You can run the script while booted to the flash drive, going through the same steps as above but this time targeting your internal drive. (but this time you can run it like this: sudo ./mirror2device, you won't need the skipcheck but you will need to allow it to do a format)
+Depending on the speed of your flash drive, it might take awhile but once done it will tell you it's okay
+to remove the target device. You can leave it in. You should be able to reboot and hit F12 or whatever key
+brings up your UEFI boot menu. Select the USB drive and... assuming it worked, it will boot and run identically
+(except for speed) to your internal drive. Test running from the flash drive, maybe go into gnome-disks and
+make sure you are indeed running from the flash drive.
+If any of the above fails, I apologize. I have only my own computer to test it on and that's what I wrote it for.
+I use Mint with MATE desktop, default two partition install.
+If the USB flash does boot and runs to you satisfaction and you're convinced it succeeded, well, you'll have the
+same mirror script setting there on the flash drive too. You can run the script while booted to the flash drive,
+going through the same steps as above but this time targeting your internal drive. (but this time you can run it
+like this: sudo ./mirror2device, you won't need the skipcheck but you will need to allow it to do a format)
 Don't try it without a backup of important personal files. (Murphy's Law)
-What it should do is pick the two mounted Linux partitions and copy those and only those to the flash drive. The newly formatted flash drive will have only two partitions (sdb1 and sdb2 or whatever). Mirroring back to the internal and allowing it to do a format will give you a 500MB EFI and all the remaining space will be usable for system files. (your home, desktop, downloads, whatever)
-Don't try it unless you're sure and are willing to accept the risk. Most of the risk would be that you accidentally target the wrong drive. Second biggest risk would probably be that it doesn't work and you waste your time. I can't guarantee anything.
+What it should do is pick the two mounted Linux partitions and copy those and only those to the flash drive.
+The newly formatted flash drive will have only two partitions (sdb1 and sdb2 or whatever). Mirroring back to
+the internal and allowing it to do a format will give you a 500MB EFI and all the remaining space will be usable
+for system files. (your home, desktop, downloads, whatever)
+Don't try it unless you're sure and are willing to accept the risk. Most of the risk would be that you accidentally
+target the wrong drive. Second biggest risk would probably be that it doesn't work and you waste your time.
+I can't guarantee anything.
 Good luck and have fun.
 
