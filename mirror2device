@@ -29,6 +29,7 @@ main () {
     gettarget;
     checktarget;
     askifformatdesired;
+    start_time=$(date +%s)
     if [[ $formatRequested == "y" ]]; then
         doformat;
     else
@@ -38,6 +39,9 @@ main () {
     domirror;
     restartservices;
     fixgrub;
+    end_time=$(date +%s)
+    elapsed=$(( end_time - start_time ))
+    echo "Total time taken: $elapsed seconds"
 }
 
 #*************************determinesource******************************
@@ -81,7 +85,7 @@ part1type=$(lsblk -o name,parttypename | grep $efishort | awk -F "$efishort" '{p
 part2type=$(lsblk -o name,parttypename | grep $mainshort | awk -F "$mainshort" '{print $2}' | sed 's/^[[:space:]]*//')
 
 if [[ $part1type != "EFI System"  || $part2type != "Linux filesystem" ]]; then
-    echo "Sorry, partitions are wrong type"
+    echo "Sorry, source partitions are wrong type"
     echo "Partition #1 must be exactly \"EFI System\""
     echo "Partition #2 must be exactly \"Linux filesystem\""
     exit 2
@@ -96,7 +100,7 @@ gettarget () {
     local response="n"
 
     while [[ "$response" != "y" ]]; do
-        read -p "Enter the device to mirror to [sdX|nvmeNnX]: " target
+        read -p "Enter the device to mirror to [sdX|nvmeXnX]: " target
         target="${target#/dev/}"
 
         if [[ -z "$target" ]]; then
