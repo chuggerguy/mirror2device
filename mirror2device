@@ -118,8 +118,6 @@ gettarget () {
 
     targetdevice="/dev/$target"
 
-    # Unmount all partitions on the target device to be safe (suggested by Gemini, is it necessary?)
-    # udisksctl unmount -bf /dev/${target}* not working. Why not?
     echo "Unmounting /dev/${target} to avoid possible corruption..."
     udisksctl unmount -bf /dev/${target}1 2>/dev/null
     udisksctl unmount -bf /dev/${target}2 2>/dev/null
@@ -245,8 +243,6 @@ echo "making the mirror"
 
     rsync -rv --delete /boot/efi/ /media/$user/EFI/
 
-    find /media/$user/EFI/ -name "grub.cfg" -exec sed -i "s/$sourceuuid/$targetuuid/" "{}" \;
-
     rsync -axAXHv \
 --exclude='/home/*/.cache' \
 --exclude='/home/*/.gvfs' \
@@ -259,8 +255,6 @@ echo "making the mirror"
 --exclude='/media/*' \
 --exclude='/lost+found' \
 --delete / /media/$user/"$label"/
-
-    sed -i "s/$sourceuuid/$targetuuid/" /media/$user/$label/boot/grub/grub.cfg
 
 [[ $(grep " / " /etc/fstab | grep -i UUID) ]] && sed -i "s/$sourceuuid/$targetuuid/" /media/$user/$label/etc/fstab || sed -i "s/$sourcelabel/$targetlabel/" /media/$user/$label/etc/fstab
 
