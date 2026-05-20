@@ -243,6 +243,8 @@ echo "making the mirror"
 
     rsync -rv --delete /boot/efi/ /media/$user/EFI/
 
+    find /media/$user/EFI/ -name "grub.cfg" -exec sed -i "s/$sourceuuid/$targetuuid/" "{}" \;
+
     rsync -axAXHv \
 --exclude='/home/*/.cache' \
 --exclude='/home/*/.gvfs' \
