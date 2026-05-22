@@ -204,7 +204,7 @@ EOF
     echo "efi and ext4 partitions created successfully."
     echo "The new partitions will now be formatted"
     echo "This might take a few minutes, please be patient."
-    mkfs.fat -F32 -n ${label^^}EFI "$efipartition"
+    mkfs.fat -F32 -n EFI "$efipartition"
     yes | mkfs.ext4 -L "$label" "$mainpartition"
     sync
 
@@ -258,9 +258,9 @@ echo "making the mirror"
 --exclude='/lost+found' \
 --delete / /media/$user/"$label"/
 
-[[ $(grep " / " /etc/fstab | grep -i UUID) ]] && sed -i "s/$sourceuuid/$targetuuid/" /media/$user/$label/etc/fstab || sed -i "s/$sourcelabel/$targetlabel/" /media/$user/$label/etc/fstab
+    [[ $(grep " / " /etc/fstab | grep -i UUID) ]] && sed -i "s/$sourceuuid/$targetuuid/" /media/$user/$label/etc/fstab || sed -i "s/$sourcelabel/$targetlabel/" /media/$user/$label/etc/fstab
 
-[[ $(grep "/boot/efi" /etc/fstab | grep -i UUID) ]] && sed -i "s/$sourceefiuuid/$targetefiuuid/" /media/$user/$label/etc/fstab || sed -i "s/$sourceefilabel/$targetefilabel/" /media/$user/$label/etc/fstab
+    [[ $(grep "/boot/efi" /etc/fstab | grep -i UUID) ]] && sed -i "s/$sourceefiuuid/$targetefiuuid/" /media/$user/$label/etc/fstab || sed -i "s/$sourceefilabel/$targetefilabel/" /media/$user/$label/etc/fstab
 
     sync
 }
